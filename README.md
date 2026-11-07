@@ -1,5 +1,16 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## 專案框架
+
+| 項目 | 內容 |
+| --- | --- |
+| 框架 | Next.js 16.4.5，使用 App Router |
+| 樣式 | Tailwind CSS 4 |
+| 語言 | TypeScript |
+| 程式碼檢查 | ESLint |
+| 資料夾結構 | 程式碼放在 `src/`，頁面放在 `src/app/` |
+| 套件管理 | npm |
+
 ## Getting Started
 
 First, run the development server:
