@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
+import { useApiKey } from "@/lib/apiKeyStorage";
 import {
+  API_KEY_HEADER,
   DEFAULT_QUESTIONS,
   MAX_ANSWER_LENGTH,
   MAX_JOB_LENGTH,
@@ -26,15 +29,16 @@ const textarea =
 const primaryButton =
   "inline-flex items-center gap-2 self-start rounded-full bg-ink px-7 py-3.5 font-semibold text-paper transition hover:opacity-90 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40";
 
-// 呼叫 /api/interview，失敗時丟出後端回傳的錯誤訊息
+// 呼叫 /api/interview，把使用者自己的 API key 放在 header 帶上；失敗時丟出後端回傳的錯誤訊息
 async function callInterview(
+  apiKey: string,
   jobDescription: string,
   totalQuestions: number,
   history: InterviewTurn[],
 ): Promise<InterviewResponse> {
   const res = await fetch("/api/interview", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", [API_KEY_HEADER]: apiKey },
     body: JSON.stringify({ jobDescription, totalQuestions, history }),
   });
   const data = await res.json();
@@ -113,6 +117,9 @@ function EvaluationReport({ evaluation, history }: { evaluation: InterviewEvalua
 
 // 輸入職缺和題數後開始面試：AI 依題數出題，答完後顯示評分、建議和示範回答
 export default function InterviewSimulator() {
+  // 使用者在設定頁存的 OpenAI API key；空字串代表還沒設定
+  const apiKey = useApiKey();
+  const hasKey = apiKey !== "";
   const [jobDescription, setJobDescription] = useState("");
   // 題數輸入框的文字；用字串存，使用者才能先清空再重打
   const [questionCount, setQuestionCount] = useState(String(DEFAULT_QUESTIONS));
@@ -134,7 +141,7 @@ export default function InterviewSimulator() {
     setLoading(true);
     setError("");
     try {
-      const result = await callInterview(jobDescription, totalQuestions, nextHistory);
+      const result = await callInterview(apiKey, jobDescription, totalQuestions, nextHistory);
       setHistory(nextHistory);
       setAnswer("");
       if (result.type === "evaluation") {
@@ -152,12 +159,12 @@ export default function InterviewSimulator() {
 
   function start(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (jobLength >= MIN_JOB_LENGTH && countValid && !loading) advance([]);
+    if (hasKey && jobLength >= MIN_JOB_LENGTH && countValid && !loading) advance([]);
   }
 
   function submitAnswer(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!current || !answer.trim() || loading) return;
+    if (!hasKey || !current || !answer.trim() || loading) return;
     advance([...history, { question: current.question, answer: answer.trim() }]);
   }
 
@@ -171,6 +178,15 @@ export default function InterviewSimulator() {
 
   return (
     <div className="flex flex-col gap-6">
+      {!hasKey && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/40 bg-accent-soft px-5 py-4 text-sm">
+          <p className="leading-6">需要先設定你自己的 OpenAI API key 才能開始面試，key 只會存在你的瀏覽器。</p>
+          <Link href="/settings" className="shrink-0 font-semibold text-accent hover:underline">
+            前往設定 →
+          </Link>
+        </div>
+      )}
+
       {!started && (
         <form onSubmit={start} className={`flex flex-col gap-6 ${card}`}>
           <div className="flex flex-col gap-3">
@@ -224,7 +240,7 @@ export default function InterviewSimulator() {
             </div>
           </div>
 
-          <button type="submit" disabled={loading || jobLength < MIN_JOB_LENGTH || !countValid} className={primaryButton}>
+          <button type="submit" disabled={!hasKey || loading || jobLength < MIN_JOB_LENGTH || !countValid} className={primaryButton}>
             {loading ? "面試官準備中…" : "開始面試"}
             {!loading && <span aria-hidden>→</span>}
           </button>
@@ -283,7 +299,7 @@ export default function InterviewSimulator() {
               placeholder="輸入你的回答"
               className={textarea}
             />
-            <button type="submit" disabled={loading || !answer.trim()} className={primaryButton}>
+            <button type="submit" disabled={!hasKey || loading || !answer.trim()} className={primaryButton}>
               {loading ? (isLastQuestion ? "面試官評分中…" : "面試官思考中…") : isLastQuestion ? "送出並查看評分" : "送出回答"}
             </button>
           </form>

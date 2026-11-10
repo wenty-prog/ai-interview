@@ -26,13 +26,19 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 示範回答會盡量用使用者原本的回答改寫，沒提供的內容用〔〕標出讓使用者自己填。不過 AI 不一定會遵守，仍可能加入使用者沒提過的做法或細節，頁面上也有提醒。
 
+### API key（BYOK，自備 key）
+
+伺服器不再使用 `OPENAI_API_KEY` 環境變數。使用者在 `/settings` 輸入自己的 OpenAI API key，存在瀏覽器的 localStorage（`interview-lab:openai-api-key`），前端每次呼叫 `/api/interview` 時放在 `X-OpenAI-Key` header 帶上，後端只拿來轉送給 OpenAI，不會儲存或記錄。
+
+- 相關程式：`src/lib/apiKeyStorage.ts`（讀寫 localStorage）、`src/app/settings/`（設定頁）、`src/components/SettingsLink.tsx`（導覽列連結，沒設定 key 時有橙色圓點）
+- 沒設定 key 時，面試頁會顯示提醒並停用「開始面試」按鈕
+
 ### 環境變數
 
 在 `.env.local` 設定，修改後要重新啟動伺服器：
 
 | 變數 | 必填 | 說明 |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | 是 | OpenAI API key，只在後端使用，不會傳到瀏覽器 |
 | `OPENAI_MODEL` | 否 | 使用的模型，預設 `gpt-4o-mini`。換成更強的模型，示範回答比較不會加入沒提過的內容，但費用較高 |
 
 ### API：`POST /api/interview`
@@ -86,8 +92,8 @@ Request body，`totalQuestions` 是 1 到 10 的整數，`history` 是空陣列�
 | 狀態碼 | 情況 |
 | --- | --- |
 | 400 | 職缺描述太短或太長、題數不是 1 到 10 的整數，或 `history` 格式不正確 |
+| 401 | 沒有帶 `X-OpenAI-Key` header，或 key 格式不正確（不是 `sk-` 開頭） |
 | 422 | AI 拒絕回答 |
-| 500 | `OPENAI_API_KEY` 沒設定 |
 | 502 | 連線 OpenAI 失敗（出題逾時 60 秒、評分逾時 120 秒）或沒有回傳內容 |
 | 其他 | OpenAI 回傳的錯誤，例如 key 失效、額度不足，狀態碼和訊息會直接轉給前端 |
 
@@ -117,7 +123,7 @@ history 筆數 = totalQuestions  →  評分
 
 #### `POST` 函式的執行順序
 
-1. **檢查設定和輸入**：依序檢查 API key、職缺描述長度、題數、`history` 格式（`parseHistory`）。任何一關沒過就用 `fail()` 回傳錯誤，不會呼叫 OpenAI。
+1. **檢查設定和輸入**：依序檢查 `X-OpenAI-Key` header 裡的 API key、職缺描述長度、題數、`history` 格式（`parseHistory`）。任何一關沒過就用 `fail()` 回傳錯誤，不會呼叫 OpenAI。
 2. **決定出題還是評分**：`const finished = history.length === total;` 是整支 API 的分岔點。
    - 出題：系統指示用 `questionPrompt`，回傳格式用 `QUESTION_SCHEMA`
    - 評分：系統指示用 `evaluationPrompt`，回傳格式用 `evaluationSchema`

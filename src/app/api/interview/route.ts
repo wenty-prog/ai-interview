@@ -4,6 +4,10 @@
 
 // 從共用設定檔匯入限制和型別，前端也用同一份，兩邊的規則才不會對不起來
 import {
+  // 使用者 API key 所在的 request header 名稱
+  API_KEY_HEADER,
+  // 檢查 API key 格式的函式
+  isValidApiKeyFormat,
   // 單一回答最多幾個字
   MAX_ANSWER_LENGTH,
   // 職缺描述最多幾個字
@@ -25,7 +29,7 @@ import {
 
 // OpenAI Chat Completions API 的網址，出題和評分都打這一支
 const ENDPOINT = "https://api.openai.com/v1/chat/completions";
-// 使用的模型：可以在 .env.local 設定 OPENAI_MODEL 換模型，沒設定就用 gpt-4o-mini
+// 使用的模型：可以在 .env.local 設定 OPENAI_MODEL 換模型，沒設定就用 gpt-4o-mini（API key 不再從環境變數讀取）
 // 「||」代表左邊是空的（沒設定）就用右邊的值
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
@@ -244,10 +248,13 @@ function parseHistory(value: unknown, total: number): InterviewTurn[] | null {
 // 匯出名為 POST 的函式：有人用 POST 方法請求 /api/interview 時，Next.js 會執行它
 // async 代表這是非同步函式，裡面可以用 await 等待網路請求完成
 export async function POST(request: Request) {
-  // API key 存在 .env.local，只在後端讀取，不會傳到瀏覽器
-  const apiKey = process.env.OPENAI_API_KEY;
-  // 沒設定 key 就直接回傳錯誤（500 代表伺服器設定有問題）
-  if (!apiKey) return fail("伺服器還沒設定 OPENAI_API_KEY，請在 .env.local 加上後重新啟動伺服器。", 500);
+  // BYOK：API key 由使用者在「設定」頁輸入、存在自己的瀏覽器，每次請求放在 X-OpenAI-Key header 帶過來
+  // 後端只拿來轉送給 OpenAI，不會儲存，也不會印到 log
+  const apiKey = request.headers.get(API_KEY_HEADER)?.trim() ?? "";
+  // 沒帶 key 就回傳錯誤（401 代表缺少身分驗證）
+  if (!apiKey) return fail("還沒設定 OpenAI API key，請先到「設定」頁輸入你的 key。", 401);
+  // 格式不對就不要送去 OpenAI
+  if (!isValidApiKeyFormat(apiKey)) return fail("OpenAI API key 格式不正確（應該是 sk- 開頭），請到「設定」頁重新輸入。", 401);
 
   // 讀取前端送來的 JSON；格式錯誤就當成空物件，後面的檢查會擋下來
   const body = await request.json().catch(() => ({}));

@@ -54,3 +54,12 @@ export type InterviewEvaluation = {
 };
 
 export type InterviewResponse = InterviewQuestion | InterviewEvaluation;
+
+// BYOK：使用者自己的 OpenAI API key 放在這個 request header 送到 /api/interview
+export const API_KEY_HEADER = "X-OpenAI-Key";
+// API key 的長度上限，超過就當成格式錯誤
+export const MAX_API_KEY_LENGTH = 300;
+
+// 檢查 API key 格式：sk- 開頭、只有可見的 ASCII 字元（header 不能放中文或空白）
+export const isValidApiKeyFormat = (value: string) =>
+  value.length <= MAX_API_KEY_LENGTH && /^sk-[\x21-\x7E]+$/.test(value);

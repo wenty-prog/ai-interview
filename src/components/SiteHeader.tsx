@@ -1,4 +1,5 @@
 import Link from "next/link";
+import SettingsLink from "./SettingsLink";
 
 // 品牌標誌：墨黑方塊加一個橙色圓點，和產品名稱
 export function Logo() {
@@ -31,12 +32,15 @@ export default function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <Link
-          href="/interview"
-          className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-paper transition hover:opacity-85"
-        >
-          開始練習
-        </Link>
+        <div className="flex items-center gap-5">
+          <SettingsLink />
+          <Link
+            href="/interview"
+            className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-paper transition hover:opacity-85"
+          >
+            開始練習
+          </Link>
+        </div>
       </div>
     </header>
   );
